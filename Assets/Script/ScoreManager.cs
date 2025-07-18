@@ -4,17 +4,27 @@ using System.Collections;
 
 public class ScoreManager : MonoBehaviour
 {
+    public static ScoreManager instance;
+
+
     [SerializeField] private TextMeshProUGUI highScoreText;
     [SerializeField] private TextMeshProUGUI currentScoreText;
 
-    private int currentScore = 0;
+    public int currentScore = 0;
     private int highScore = 0;
 
+    private void Awake()
+    {
+        if(instance == null)
+        {
+            instance = this;
+        }
+    }
 
     private void Start()
     {
         highScore = PlayerPrefs.GetInt("HighScore", 0);
-        highScoreText.text = "High Score: " + highScore.ToString();
+        highScoreText.text = "HighScore: " + highScore.ToString();
         StartCoroutine(CountScore());   
     }
 
