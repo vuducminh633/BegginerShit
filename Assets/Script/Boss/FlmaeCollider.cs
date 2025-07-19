@@ -8,8 +8,8 @@ public class FlmaeCollider : MonoBehaviour
         {
             PlayerController player = other.GetComponent<PlayerController>();
             
-            player.currentHealth--; 
-            
+            // Use the TakeDamage method which respects invincibility
+            player.TakeDamage();
 
             Destroy(gameObject); 
         }

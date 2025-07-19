@@ -12,6 +12,12 @@ public class PowerUpManager : MonoBehaviour
 
     private IEnumerator ShieldRoutine(float duration, ShieldEffect shieldEffect)
     {
+        // Stop any ongoing invincibility when shield activates to prevent conflicts
+        if (player.IsInvincible())
+        {
+            player.StopInvincibility();
+        }
+        
         player.isSheild = true;
         if (shieldEffect != null)
             shieldEffect.EnableShield();

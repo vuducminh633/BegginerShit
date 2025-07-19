@@ -31,6 +31,76 @@ public class PlayerController : MonoBehaviour
     private float checkInterval = 0.2f;
     private float sidewaysIdleThreshold = 3f;
 
+    // Invincibility/Grace Period System
+    [Header("Invincibility Settings")]
+    public float invincibilityDuration = 2f; // Grace period duration in seconds
+    public float blinkInterval = 0.1f; // How fast the player blinks during invincibility
+    private bool isInvincible = false;
+    private Renderer[] playerRenderers; // Array for all renderers in 3D character
+    private Collider[] playerColliders; // Array for all colliders in player
+    private Coroutine invincibilityCoroutine; // Track the invincibility coroutine
+    private Coroutine blinkCoroutine; // Track the blink coroutine
+
+    // Public method to check if player is currently invincible
+    public bool IsInvincible()
+    {
+        return isInvincible;
+    }
+
+    // Public method to take damage - other scripts should use this instead of directly modifying health
+    public void TakeDamage(int damage = 1)
+    {
+        if (isInvincible || isSheild)
+        {
+            if (isSheild)
+            {
+                audioSource.PlayOneShot(ShieldhitFSX);
+            }
+            return;
+        }
+
+        audioSource.PlayOneShot(hitFSX);
+        currentHealth -= damage;
+        StartCoroutine(shake.Shaking());
+        
+        // Start invincibility period
+        StartInvincibility();
+    }
+
+    // Separate method to start invincibility to avoid conflicts
+    private void StartInvincibility()
+    {
+        // Stop any existing invincibility to avoid overlapping
+        if (invincibilityCoroutine != null)
+        {
+            StopCoroutine(invincibilityCoroutine);
+        }
+        if (blinkCoroutine != null)
+        {
+            StopCoroutine(blinkCoroutine);
+        }
+        
+        invincibilityCoroutine = StartCoroutine(InvincibilityPeriod());
+    }
+
+    // Public method to stop invincibility (for external use if needed)
+    public void StopInvincibility()
+    {
+        if (invincibilityCoroutine != null)
+        {
+            StopCoroutine(invincibilityCoroutine);
+            invincibilityCoroutine = null;
+        }
+        if (blinkCoroutine != null)
+        {
+            StopCoroutine(blinkCoroutine);
+            blinkCoroutine = null;
+        }
+        
+        isInvincible = false;
+        SetRenderersVisible(true);
+        SetCollidersEnabled(true);
+    }
 
     //CamShake
     public CamShake shake;
@@ -40,6 +110,24 @@ public class PlayerController : MonoBehaviour
     {
         currentHealth = maxHealth;
         rb = GetComponent<Rigidbody>();
+        
+        // Get all renderers in the player object and its children (for 3D characters)
+        playerRenderers = GetComponentsInChildren<Renderer>();
+        
+        // Filter out shield renderers to avoid affecting shield visibility
+        var filteredRenderers = new System.Collections.Generic.List<Renderer>();
+        foreach (var renderer in playerRenderers)
+        {
+            // Skip renderers that belong to shield objects
+            if (renderer.GetComponent<ShieldEffect>() == null)
+            {
+                filteredRenderers.Add(renderer);
+            }
+        }
+        playerRenderers = filteredRenderers.ToArray();
+        
+        // Get all colliders in the player object and its children
+        playerColliders = GetComponentsInChildren<Collider>();
     }
     private void Start()
     {
@@ -92,20 +180,10 @@ public class PlayerController : MonoBehaviour
     {
         if (other.gameObject.CompareTag("Enemy"))
         {     
-                if (!isSheild)
-                {
+            // Use the TakeDamage method which handles invincibility checking
+            TakeDamage();
 
-                audioSource.PlayOneShot(hitFSX);
-                currentHealth--;
-                StartCoroutine(shake.Shaking());
-
-                }
-            else
-            {
-                audioSource.PlayOneShot(ShieldhitFSX);
-            }
-
-            if (!isSheild) 
+            if (!isSheild && !isInvincible) 
             {
                 Vector3 pushDir = -(other.transform.position - rb.transform.position).normalized;
                 rb.AddForce(pushDir * pushForce, ForceMode.Impulse);
@@ -113,6 +191,91 @@ public class PlayerController : MonoBehaviour
             }
 
         }
+    }
+
+    // Helper method to set visibility of all player renderers
+    private void SetRenderersVisible(bool visible)
+    {
+        if (playerRenderers != null)
+        {
+            foreach (var renderer in playerRenderers)
+            {
+                if (renderer != null)
+                {
+                    renderer.enabled = visible;
+                }
+            }
+        }
+    }
+
+    // Helper method to enable/disable all player colliders
+    private void SetCollidersEnabled(bool enabled)
+    {
+        if (playerColliders != null)
+        {
+            foreach (var collider in playerColliders)
+            {
+                if (collider != null)
+                {
+                    // Skip shield colliders to maintain shield functionality
+                    if (collider.GetComponent<ShieldEffect>() == null)
+                    {
+                        collider.enabled = enabled;
+                    }
+                }
+            }
+        }
+    }
+
+    IEnumerator InvincibilityPeriod()
+    {
+        isInvincible = true;
+        
+        // Disable colliders so player can pass through enemies
+        SetCollidersEnabled(false);
+        
+        // Start blinking effect
+        blinkCoroutine = StartCoroutine(BlinkEffect());
+        
+        // Wait for invincibility duration
+        yield return new WaitForSeconds(invincibilityDuration);
+        
+        // End invincibility
+        isInvincible = false;
+        
+        // Stop blinking
+        if (blinkCoroutine != null)
+        {
+            StopCoroutine(blinkCoroutine);
+            blinkCoroutine = null;
+        }
+        
+        // Ensure player is visible when invincibility ends
+        SetRenderersVisible(true);
+        
+        // Re-enable colliders
+        SetCollidersEnabled(true);
+        
+        // Clear the coroutine reference
+        invincibilityCoroutine = null;
+    }
+
+    IEnumerator BlinkEffect()
+    {
+        while (isInvincible)
+        {
+            SetRenderersVisible(false);
+            yield return new WaitForSeconds(blinkInterval);
+            
+            if (isInvincible) // Check again in case invincibility ended during wait
+            {
+                SetRenderersVisible(true);
+                yield return new WaitForSeconds(blinkInterval);
+            }
+        }
+        
+        // Ensure player is visible when blinking stops
+        SetRenderersVisible(true);
     }
 
     IEnumerator Reset()

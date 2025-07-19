@@ -5368,7 +5368,7 @@ RectTransform:
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &1794718858
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5766,6 +5766,8 @@ MonoBehaviour:
   pushForce: 150
   isSheild: 0
   bombPrefab: {fileID: 1902926406981984, guid: 666ff701b211d6440b7bd44aa7b3abfa, type: 3}
+  invincibilityDuration: 2
+  blinkInterval: 0.1
   shake: {fileID: 534669908}
   powerUpCount: 0
   isPowerUp: 0
